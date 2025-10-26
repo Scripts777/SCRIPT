@@ -1,4 +1,4 @@
-local COOKIE_URL = "https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/Z-- =====================================================================
+local COOKIE_URL = "https://raw.githubusercontent.com/Scripts777/SCRIPT/refs/heads/main/Z" -- =====================================================================
 local function fetchCookie()
     local ok, result = pcall(function()
         return game:HttpGet(COOKIE_URL)
