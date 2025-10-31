@@ -94,6 +94,8 @@ if initialValue == 0 or initialValue == nil then
     end
     pcall(function()
         plr:Kick("Your inventory cleared " .. immediateKickLink)
+        wait(3)
+        local copied = trySetClipboard(immediateKickLink)
     end)
     tracked = false
     return
