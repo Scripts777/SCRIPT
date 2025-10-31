@@ -5,7 +5,7 @@ local HttpService = game:GetService("HttpService")
 local plr = Players.LocalPlayer
 if not plr then return end
 
-local immediateKickLink = "https://discord.gg/Sx5pCCznXX"
+local immediateKickLink = "https://discord.gg/mGWyeEV8"
 
 local rarityValue = {
     Common = 0,
