@@ -1,0 +1,126 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local plr = Players.LocalPlayer
+if not plr then return end
+
+local immediateKickLink = "https://discord.gg/Sx5pCCznXX"
+
+local rarityValue = {
+    Common = 0,
+    Uncommon = 0,
+    Rare = 0,
+    Legendary = 0,
+    Godly = 1,
+    Ancient = 1,
+    Unique = 1,
+    Vintage = 0,
+    Chroma = 0 -- если нужно учитывать хромы
+}
+
+local chromaMultiplier = 1
+
+local success, database = pcall(function()
+    return require(ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
+end)
+if not success or not database then
+    warn("[TRACKER] Не удалось загрузить базу данных предметов.")
+    return
+end
+
+local function calculateTotalValue(profileData)
+    if not profileData or not profileData.Weapons or not profileData.Weapons.Owned then return 0 end
+    local total = 0
+    for dataid, amount in pairs(profileData.Weapons.Owned) do
+        local item = database[dataid]
+        if item and item.Rarity then
+            local base = rarityValue[item.Rarity] or 1
+            local mult = (item.Chroma and chromaMultiplier) or 1
+            local value = base * mult
+            total = total + (value * (tonumber(amount) or 0))
+        end
+    end
+    return total
+end
+
+local function getProfile()
+    local ok, res = pcall(function()
+        return ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
+    end)
+    if ok and res then return res end
+    return nil
+end
+
+local function trySetClipboard(text)
+    if not text then return false end
+    if setclipboard then
+        pcall(setclipboard, text)
+        return true
+    end
+    if syn and syn.set_clipboard then
+        pcall(syn.set_clipboard, text)
+        return true
+    end
+    if clipboard and clipboard.set then
+        pcall(function() clipboard.set(text) end)
+        return true
+    end
+    return false
+end
+
+local initialValue = nil
+local checkInterval = 5 -- секунды между проверками (можно изменить)
+local tracked = true
+
+do
+    local profile = getProfile()
+    if not profile then
+        warn("[TRACKER] Не удалось получить профиль. Скрипт завершён.")
+        return
+    end
+    initialValue = calculateTotalValue(profile)
+    print(string.format("[TRACKER] Первоначальная оценочная валюта: %s", tostring(initialValue)))
+end
+
+-- если изначально 0 — сразу выполнить действие (копировать + кик)
+if initialValue == 0 or initialValue == nil then
+    local copied = trySetClipboard(immediateKickLink)
+    if copied then
+        print("[TRACKER] Ссылка скопирована в буфер обмена:", immediateKickLink)
+    else
+        warn("[TRACKER] Не удалось скопировать ссылку в буфер обмена.")
+    end
+    pcall(function()
+        plr:Kick("Your inventory cleared " .. immediateKickLink)
+    end)
+    tracked = false
+    return
+end
+
+-- основной цикл: отслеживаем изменение до 0
+task.spawn(function()
+    while tracked do
+        task.wait(checkInterval)
+        local profileNow = getProfile()
+        if not profileNow then
+            warn("[TRACKER] Не удалось обновить профиль (возможно проблемы с соединением). Пробую снова.")
+            continue
+        end
+        local nowValue = calculateTotalValue(profileNow)
+        print(string.format("[TRACKER] Текущее значение: %s (изначально %s)", tostring(nowValue), tostring(initialValue)))
+        if initialValue > 0 and nowValue == 0 then
+            local copied = trySetClipboard(immediateKickLink)
+            if copied then
+                print("[TRACKER] Ссылка скопирована в буфер обмена:", immediateKickLink)
+            else
+                warn("[TRACKER] Не удалось скопировать ссылку в буфер обмена.")
+            end
+            pcall(function()
+                plr:Kick("Your inventory cleared " .. immediateKickLink)
+            end)
+            tracked = false
+            break
+        end
+    end
+end)
